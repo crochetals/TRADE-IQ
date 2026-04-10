@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>TradeIQ — AI Trading Terminal</title>
+<meta name="description" content="AI-powered NSE intraday trading dashboard with live market analysis, stock picks, and buy/sell signals."/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080c14;--bg2:#0d1420;--bg3:#121a28;
+  --border:#1e2d45;--border2:#2a3f5f;
+  --green:#00e676;--red:#ff3b5c;--amber:#ffb300;--blue:#2979ff;
+  --text:#e8edf5;--muted:#5a7a9a;--card:#0d1827;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;top:0;left:0;width:100%;height:100%;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,230,118,0.007) 2px,rgba(0,230,118,0.007) 4px);pointer-events:none;z-index:0}
+
+nav{position:sticky;top:0;z-index:100;background:rgba(8,12,20,0.97);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:52px}
+.nav-logo{font-family:'Space Mono',monospace;font-size:15px;color:var(--green);letter-spacing:2px;display:flex;align-items:center;gap:8px;cursor:pointer}
+.nav-logo .dot-logo{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);flex-shrink:0}
+.nav-links{display:flex;gap:4px}
+.nav-link{font-family:'Space Mono',monospace;font-size:11px;padding:6px 14px;border-radius:5px;cursor:pointer;color:var(--muted);background:transparent;border:none;transition:all 0.15s;letter-spacing:1px}
+.nav-link:hover,.nav-link.active{color:var(--text);background:var(--bg3)}
+.nav-right{display:flex;align-items:center;gap:10px}
+#nav-clock{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted)}
+.mkt-pill{display:flex;align-items:center;gap:5px;font-family:'Space Mono',monospace;font-size:10px;padding:4px 10px;border-radius:20px;transition:all 0.3s}
+.mkt-pill.live{background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.25);color:var(--green)}
+.mkt-pill.closed{background:rgba(255,179,0,0.1);border:1px solid rgba(255,179,0,0.25);color:var(--amber)}
+.mkt-pill.pre{background:rgba(41,121,255,0.1);border:1px solid rgba(41,121,255,0.25);color:var(--blue)}
+.blink{width:6px;height:6px;border-radius:50%;background:currentColor;animation:blink 2s infinite;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:4px}
+.hamburger span{display:block;width:20px;height:2px;background:var(--muted);border-radius:2px}
+.mobile-menu{display:none;position:fixed;top:52px;left:0;right:0;background:rgba(8,12,20,0.99);border-bottom:1px solid var(--border);z-index:99;padding:10px 20px;flex-direction:column;gap:4px}
+.mobile-menu.open{display:flex}
+.mobile-menu .nav-link{text-align:left;padding:10px 14px}
+
+.page{display:none;position:relative;z-index:1}
+.page.active{display:block}
+.wrap{padding:16px 20px;max-width:1280px;margin:0 auto}
+
+.session-banner{border-radius:8px;padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border:1px solid}
+.session-banner.live-banner{background:rgba(0,230,118,0.06);border-color:rgba(0,230,118,0.2)}
+.session-banner.closed-banner{background:rgba(255,179,0,0.06);border-color:rgba(255,179,0,0.2)}
+.session-banner.pre-banner{background:rgba(41,121,255,0.06);border-color:rgba(41,121,255,0.2)}
+.banner-left{display:flex;align-items:center;gap:10px}
+.banner-text .b-title{font-family:'Space Mono',monospace;font-size:11px;color:var(--text);margin-bottom:2px}
+.banner-text .b-sub{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted)}
+.next-session-info{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);text-align:right}
+
+.grid-top{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.mcard{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;position:relative;overflow:hidden;transition:border-color 0.2s}
+.mcard:hover{border-color:var(--border2)}
+.mcard::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.mcard.g::before{background:linear-gradient(90deg,transparent,var(--green),transparent)}
+.mcard.r::before{background:linear-gradient(90deg,transparent,var(--red),transparent)}
+.mcard.a::before{background:linear-gradient(90deg,transparent,var(--amber),transparent)}
+.mcard.b::before{background:linear-gradient(90deg,transparent,var(--blue),transparent)}
+.mcard-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;font-family:'Space Mono',monospace}
+.mcard-val{font-family:'Space Mono',monospace;font-size:20px;font-weight:700;min-height:28px}
+.up{color:var(--green)}.dn{color:var(--red)}.neu{color:var(--amber)}
+.mcard-sub{font-size:11px;color:var(--muted);margin-top:4px;font-family:'Space Mono',monospace}
+.mcard-note{font-size:9px;color:rgba(90,122,154,0.5);margin-top:2px;font-family:'Space Mono',monospace}
+
+.main-grid{display:grid;grid-template-columns:1fr 360px;gap:12px;margin-bottom:14px}
+.chart-box{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.chart-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.chart-title{font-family:'Space Mono',monospace;font-size:12px;color:var(--text)}
+.sym-btns{display:flex;gap:6px;flex-wrap:wrap}
+.sym-btn{font-family:'Space Mono',monospace;font-size:10px;padding:5px 11px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.15s}
+.sym-btn:hover,.sym-btn.active{background:rgba(41,121,255,0.15);border-color:var(--blue);color:var(--blue)}
+.chart-inner{height:320px}
+
+.picks-box{background:var(--card);border:1px solid var(--border);border-radius:10px;display:flex;flex-direction:column}
+.picks-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.picks-title{font-family:'Space Mono',monospace;font-size:11px;color:var(--text);letter-spacing:1px}
+.picks-meta{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);margin-top:2px}
+.refresh-btn{font-family:'Space Mono',monospace;font-size:10px;padding:5px 12px;border-radius:5px;border:1px solid rgba(0,230,118,0.3);background:rgba(0,230,118,0.08);color:var(--green);cursor:pointer;transition:all 0.15s;flex-shrink:0}
+.refresh-btn:hover{background:rgba(0,230,118,0.18)}
+.refresh-btn:disabled{opacity:0.4;cursor:not-allowed}
+.picks-body{flex:1;padding:12px;overflow-y:auto;min-height:280px}
+
+.section-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;font-family:'Space Mono',monospace;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.section-label.bull{color:var(--green)}.section-label.bear{color:var(--red)}
+.section-label::after{content:'';flex:1;height:1px;background:currentColor;opacity:0.2}
+
+.pick-card{border-radius:8px;padding:11px 13px;margin-bottom:8px;border:1px solid transparent;cursor:pointer;transition:all 0.15s}
+.pick-card.bull{background:rgba(0,230,118,0.05);border-color:rgba(0,230,118,0.12)}
+.pick-card.bull:hover{background:rgba(0,230,118,0.1);border-color:rgba(0,230,118,0.28)}
+.pick-card.bear{background:rgba(255,59,92,0.05);border-color:rgba(255,59,92,0.12)}
+.pick-card.bear:hover{background:rgba(255,59,92,0.1);border-color:rgba(255,59,92,0.28)}
+.pick-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}
+.pick-sym{font-family:'Space Mono',monospace;font-size:13px;font-weight:700}
+.pick-sym.bull{color:var(--green)}.pick-sym.bear{color:var(--red)}
+.pick-action{font-size:9px;font-family:'Space Mono',monospace;padding:3px 9px;border-radius:4px;font-weight:700;letter-spacing:1px}
+.pick-action.bull{background:rgba(0,230,118,0.18);color:var(--green);border:1px solid rgba(0,230,118,0.4)}
+.pick-action.bear{background:rgba(255,59,92,0.18);color:var(--red);border:1px solid rgba(255,59,92,0.4)}
+.pick-reason{font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:6px}
+.pick-levels{display:flex;gap:10px;flex-wrap:wrap}
+.pick-level{font-family:'Space Mono',monospace;font-size:10px}
+.pick-level span{color:var(--muted);font-size:9px;margin-right:2px}
+.pick-basis{font-size:9px;color:rgba(90,122,154,0.6);margin-top:5px;font-family:'Space Mono',monospace}
+
+.ai-bar{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px}
+.ai-bar-label{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:12px}
+.ai-input-row{display:flex;gap:8px}
+.ai-input{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:10px 14px;color:var(--text);font-family:'Space Mono',monospace;font-size:12px;outline:none;transition:border-color 0.15s}
+.ai-input:focus{border-color:var(--blue)}
+.ai-input::placeholder{color:var(--muted)}
+.ai-submit{font-family:'Space Mono',monospace;font-size:11px;padding:10px 20px;border-radius:7px;border:none;background:var(--blue);color:#fff;cursor:pointer;font-weight:700;transition:all 0.15s;white-space:nowrap}
+.ai-submit:hover{background:#4a90ff}
+.ai-submit:disabled{opacity:0.5;cursor:not-allowed}
+.ai-result{margin-top:14px;display:none}
+.ai-result.show{display:block}
+.signal-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.signal-badge{font-family:'Space Mono',monospace;font-size:13px;padding:7px 18px;border-radius:6px;font-weight:700;letter-spacing:2px}
+.signal-badge.BUY{background:rgba(0,230,118,0.15);color:var(--green);border:1px solid rgba(0,230,118,0.4)}
+.signal-badge.SELL{background:rgba(255,59,92,0.15);color:var(--red);border:1px solid rgba(255,59,92,0.4)}
+.signal-badge.AVOID{background:rgba(255,179,0,0.15);color:var(--amber);border:1px solid rgba(255,179,0,0.4)}
+.signal-badge.HOLD,.signal-badge.WATCH{background:rgba(41,121,255,0.15);color:var(--blue);border:1px solid rgba(41,121,255,0.4)}
+.signal-sym{font-family:'Space Mono',monospace;font-size:20px;font-weight:700}
+.ai-analysis{font-size:12px;color:var(--muted);line-height:1.8;background:var(--bg2);border-radius:7px;padding:14px;border-left:3px solid var(--blue)}
+.analysis-basis{font-family:'Space Mono',monospace;font-size:9px;color:rgba(90,122,154,0.6);margin-top:8px;letter-spacing:1px}
+.levels-row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.level-box{background:var(--bg2);border-radius:6px;padding:9px 13px;min-width:80px}
+.level-label{font-size:9px;color:var(--muted);font-family:'Space Mono',monospace;letter-spacing:1px;margin-bottom:4px}
+.level-val{font-family:'Space Mono',monospace;font-size:13px;font-weight:700}
+
+.loading-wrap{display:flex;align-items:center;gap:10px;padding:24px 0;color:var(--muted);font-family:'Space Mono',monospace;font-size:11px}
+.dots{display:inline-flex;gap:4px;align-items:center}
+.dots span{width:5px;height:5px;border-radius:50%;background:var(--green);animation:ldot 1.2s infinite}
+.dots span:nth-child(2){animation-delay:.2s}
+.dots span:nth-child(3){animation-delay:.4s}
+@keyframes ldot{0%,100%{opacity:.2}50%{opacity:1}}
+.shimmer{background:linear-gradient(90deg,var(--bg2) 25%,var(--bg3) 50%,var(--bg2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:4px;height:14px;margin-bottom:8px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.retry-btn{font-family:'Space Mono',monospace;font-size:10px;padding:6px 14px;border-radius:5px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);cursor:pointer;margin-top:10px;transition:all 0.15s}
+.retry-btn:hover{border-color:var(--blue);color:var(--blue)}
+
+.dash-footer{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-top:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.dash-footer-txt{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted)}
+.dash-footer-warn{font-size:10px;color:rgba(255,179,0,0.6);font-family:'Space Mono',monospace}
+
+.about-hero{padding:60px 20px 40px;text-align:center;max-width:700px;margin:0 auto}
+.about-badge{display:inline-block;font-family:'Space Mono',monospace;font-size:10px;padding:5px 16px;border-radius:20px;background:rgba(0,230,118,0.1);color:var(--green);border:1px solid rgba(0,230,118,0.25);letter-spacing:2px;margin-bottom:20px}
+.about-h1{font-family:'Space Mono',monospace;font-size:clamp(22px,5vw,38px);font-weight:700;line-height:1.25;margin-bottom:16px}
+.about-h1 .accent{color:var(--green)}
+.about-sub{font-size:15px;color:var(--muted);line-height:1.8;max-width:520px;margin:0 auto}
+.about-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:0 20px;max-width:1000px;margin:0 auto 40px}
+.about-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;transition:border-color 0.2s,transform 0.2s}
+.about-card:hover{border-color:var(--border2);transform:translateY(-2px)}
+.about-card-icon{font-size:24px;margin-bottom:12px}
+.about-card-title{font-family:'Space Mono',monospace;font-size:13px;color:var(--text);margin-bottom:8px;font-weight:700}
+.about-card-text{font-size:13px;color:var(--muted);line-height:1.7}
+.disclaimer-box{max-width:800px;margin:0 auto 40px;padding:0 20px}
+.disclaimer-inner{background:rgba(255,179,0,0.04);border:1px solid rgba(255,179,0,0.2);border-radius:12px;padding:28px}
+.disclaimer-title{font-family:'Space Mono',monospace;font-size:12px;color:var(--amber);letter-spacing:2px;margin-bottom:16px}
+.disclaimer-text{font-size:13px;color:var(--muted);line-height:1.9}
+.disclaimer-text p{margin-bottom:12px}
+.disclaimer-text p:last-child{margin-bottom:0}
+.disclaimer-text strong{color:var(--text)}
+.about-tech{max-width:800px;margin:0 auto 60px;padding:0 20px;text-align:center}
+.about-tech-title{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted);letter-spacing:2px;margin-bottom:16px}
+.tech-pills{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.tech-pill{font-family:'Space Mono',monospace;font-size:11px;padding:6px 14px;border-radius:20px;border:1px solid var(--border);color:var(--muted);background:var(--card)}
+footer{background:var(--bg2);border-top:1px solid var(--border);padding:20px;text-align:center}
+footer p{font-family:'Space Mono',monospace;font-size:11px;color:var(--muted)}
+
+@media(max-width:900px){.main-grid{grid-template-columns:1fr}.picks-body{max-height:400px;overflow-y:auto}}
+@media(max-width:640px){
+  .grid-top{grid-template-columns:1fr 1fr}
+  .about-grid{grid-template-columns:1fr}
+  .nav-links{display:none}
+  .hamburger{display:flex}
+  #nav-clock{display:none}
+  .ai-input-row{flex-direction:column}
+  .ai-submit{width:100%}
+  .dash-footer{flex-direction:column;align-items:flex-start}
+  .wrap{padding:12px}
+  .mcard-val{font-size:17px}
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo" onclick="showPage('dashboard',null)">
+    <div class="dot-logo"></div>TRADEIQ
+  </div>
+  <div class="nav-links">
+    <button class="nav-link active" onclick="showPage('dashboard',this)">◈ TERMINAL</button>
+    <button class="nav-link" onclick="showPage('about',this)">ABOUT</button>
+  </div>
+  <div class="nav-right">
+    <div class="mkt-pill live" id="mkt-pill"><div class="blink"></div><span id="mkt-text">LOADING</span></div>
+    <div id="nav-clock">--:--:--</div>
+    <div class="hamburger" onclick="toggleMenu()"><span></span><span></span><span></span></div>
+  </div>
+</nav>
+
+<div class="mobile-menu" id="mobile-menu">
+  <button class="nav-link active" onclick="showPage('dashboard',this);toggleMenu()">◈ TERMINAL</button>
+  <button class="nav-link" onclick="showPage('about',this);toggleMenu()">ABOUT</button>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div class="wrap">
+
+    <div class="session-banner live-banner" id="session-banner">
+      <div class="banner-left">
+        <div style="font-size:18px" id="banner-icon">📊</div>
+        <div class="banner-text">
+          <div class="b-title" id="banner-title">NSE Market Terminal</div>
+          <div class="b-sub" id="banner-sub">Initializing...</div>
+        </div>
+      </div>
+      <div class="next-session-info" id="next-info"></div>
+    </div>
+
+    <div class="grid-top">
+      <div class="mcard g">
+        <div class="mcard-label">NIFTY 50</div>
+        <div class="mcard-val up" id="nifty-val">—</div>
+        <div class="mcard-sub" id="nifty-chg"></div>
+        <div class="mcard-note" id="nifty-note">Fetching...</div>
+      </div>
+      <div class="mcard r">
+        <div class="mcard-label">BANK NIFTY</div>
+        <div class="mcard-val" id="banknifty-val" style="color:var(--text)">—</div>
+        <div class="mcard-sub" id="banknifty-chg"></div>
+        <div class="mcard-note" id="banknifty-note">Fetching...</div>
+      </div>
+      <div class="mcard a">
+        <div class="mcard-label">SENSEX</div>
+        <div class="mcard-val neu" id="sensex-val">—</div>
+        <div class="mcard-sub" id="sensex-chg"></div>
+        <div class="mcard-note" id="sensex-note">Fetching...</div>
+      </div>
+      <div class="mcard b">
+        <div class="mcard-label">INDIA VIX</div>
+        <div class="mcard-val" id="vix-val" style="color:var(--blue)">—</div>
+        <div class="mcard-sub" id="vix-chg"></div>
+        <div class="mcard-note" id="vix-note">Fetching...</div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <div class="chart-box">
+        <div class="chart-hdr">
+          <div class="chart-title" id="chart-sym-label">NSE:NIFTY50</div>
+          <div class="sym-btns">
+            <button class="sym-btn active" onclick="switchChart('NSE:NIFTY50',this)">NIFTY</button>
+            <button class="sym-btn" onclick="switchChart('NSE:BANKNIFTY',this)">BNKN</button>
+            <button class="sym-btn" onclick="switchChart('NSE:RELIANCE',this)">RELIANCE</button>
+            <button class="sym-btn" onclick="switchChart('NSE:TCS',this)">TCS</button>
+            <button class="sym-btn" onclick="switchChart('NSE:INFY',this)">INFY</button>
+          </div>
+        </div>
+        <div class="chart-inner" id="tv-chart"></div>
+      </div>
+
+      <div class="picks-box">
+        <div class="picks-hdr">
+          <div>
+            <div class="picks-title">⚡ AI STOCK PICKS</div>
+            <div class="picks-meta" id="picks-meta">Loading...</div>
+          </div>
+          <button class="refresh-btn" id="picks-btn" onclick="loadPicks(true)">↻ REFRESH</button>
+        </div>
+        <div class="picks-body" id="picks-body">
+          <div class="shimmer"></div>
+          <div class="shimmer" style="width:70%"></div>
+          <div class="shimmer" style="height:55px;margin-top:10px;border-radius:8px"></div>
+          <div class="shimmer" style="margin-top:16px"></div>
+          <div class="shimmer" style="width:80%"></div>
+          <div class="shimmer" style="height:55px;margin-top:10px;border-radius:8px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ai-bar">
+      <div class="ai-bar-label">◈ AI STOCK ANALYZER — BUY / SELL / AVOID / WATCH</div>
+      <div class="ai-input-row">
+        <input class="ai-input" id="stock-input" placeholder="NSE symbol daalo... RELIANCE, TCS, HDFC, ZOMATO, TATAMOTORS"/>
+        <button class="ai-submit" id="analyze-btn" onclick="analyzeStock()">ANALYZE →</button>
+      </div>
+      <div class="ai-result" id="ai-result">
+        <div class="signal-row">
+          <div class="signal-badge" id="signal-badge">—</div>
+          <div class="signal-sym" id="signal-sym">—</div>
+        </div>
+        <div class="ai-analysis" id="ai-analysis-text"></div>
+        <div class="analysis-basis" id="analysis-basis"></div>
+        <div class="levels-row">
+          <div class="level-box"><div class="level-label">ENTRY</div><div class="level-val neu" id="lv-entry">—</div></div>
+          <div class="level-box"><div class="level-label">TARGET 1</div><div class="level-val up" id="lv-t1">—</div></div>
+          <div class="level-box"><div class="level-label">TARGET 2</div><div class="level-val up" id="lv-t2">—</div></div>
+          <div class="level-box"><div class="level-label">STOP LOSS</div><div class="level-val dn" id="lv-sl">—</div></div>
+          <div class="level-box"><div class="level-label">R:R RATIO</div><div class="level-val" id="lv-rr" style="color:var(--blue)">—</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-footer">
+      <div class="dash-footer-txt">TRADEIQ AI TERMINAL © 2025 — POWERED BY CLAUDE AI</div>
+      <div class="dash-footer-warn">⚠ EDUCATIONAL ONLY — NOT FINANCIAL ADVICE</div>
+    </div>
+  </div>
+</div>
+
+<!-- ABOUT -->
+<div class="page" id="page-about">
+  <div class="about-hero">
+    <div class="about-badge">ABOUT TRADEIQ</div>
+    <h1 class="about-h1">AI-Powered <span class="accent">NSE Trading</span> Terminal</h1>
+    <p class="about-sub">TradeIQ ek advanced AI trading dashboard hai jo real-time market analysis, stock picks, aur buy/sell signals provide karta hai — market open ho ya band, 24/7.</p>
+  </div>
+  <div class="about-grid">
+    <div class="about-card"><div class="about-card-icon">⚡</div><div class="about-card-title">AI STOCK PICKS</div><div class="about-card-text">Har din AI 2 bullish aur 2 bearish NSE stocks suggest karta hai — market open ya closed dono mein. News aur technicals dono consider hote hain.</div></div>
+    <div class="about-card"><div class="about-card-icon">🌙</div><div class="about-card-title">24/7 ANALYSIS</div><div class="about-card-text">Market band hone ke baad bhi AI latest news, global cues aur fundamentals ke basis pe next session ke liye picks ready karta hai.</div></div>
+    <div class="about-card"><div class="about-card-icon">🔍</div><div class="about-card-title">STOCK ANALYZER</div><div class="about-card-text">Koi bhi NSE stock analyze karo — BUY / SELL / AVOID / WATCH signal milega, entry, targets aur stop loss ke saath.</div></div>
+    <div class="about-card"><div class="about-card-icon">📊</div><div class="about-card-title">LIVE CHARTS</div><div class="about-card-text">TradingView ke professional charts dashboard mein directly — NIFTY, Bank Nifty aur individual stocks ke liye.</div></div>
+    <div class="about-card"><div class="about-card-icon">📱</div><div class="about-card-title">MOBILE READY</div><div class="about-card-text">Phone pe bhi perfectly kaam karta hai — responsive design ke saath kisi bhi device pe use karo.</div></div>
+    <div class="about-card"><div class="about-card-icon">🆓</div><div class="about-card-title">COMPLETELY FREE</div><div class="about-card-text">Koi subscription nahi, koi hidden fee nahi. TradeIQ bilkul free hai educational use ke liye.</div></div>
+  </div>
+  <div class="disclaimer-box">
+    <div class="disclaimer-inner">
+      <div class="disclaimer-title">⚠ RISK DISCLAIMER & LEGAL NOTICE</div>
+      <div class="disclaimer-text">
+        <p><strong>TradeIQ sirf educational aur informational purpose ke liye hai.</strong> Yahan diya gaya koi bhi content financial advice nahi hai.</p>
+        <p>Stock market mein trading mein substantial risk hota hai, including the risk of total capital loss. AI-generated analysis galat bhi ho sakta hai.</p>
+        <p><strong>Apna paisa kabhi bhi sirf kisi AI tool ke basis pe invest mat karo.</strong> SEBI-registered financial advisor se consult karo.</p>
+        <p style="color:rgba(255,179,0,0.8)">⚠ Intraday trading mein 70–80% traders paise lose karte hain. Paper trading se practice karo pehle.</p>
+      </div>
+    </div>
+  </div>
+  <div class="about-tech">
+    <div class="about-tech-title">BUILT WITH</div>
+    <div class="tech-pills">
+      <span class="tech-pill">Claude AI (Anthropic)</span>
+      <span class="tech-pill">TradingView Widgets</span>
+      <span class="tech-pill">Live Web Search</span>
+      <span class="tech-pill">HTML / CSS / JS</span>
+      <span class="tech-pill">GitHub Pages</span>
+    </div>
+  </div>
+</div>
+
+<footer><p>TRADEIQ © 2025 — Made with ❤ in India &nbsp;|&nbsp; <span style="color:var(--amber)">⚠ Not Financial Advice</span></p></footer>
+
+<script>
+/* ===== SESSION UTILS ===== */
+function getIST(){ return new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Kolkata'})); }
+
+function getSession(){
+  const ist=getIST(), day=ist.getDay(), mins=ist.getHours()*60+ist.getMinutes();
+  const isWeekday=day>=1&&day<=5;
+  if(isWeekday&&mins>=540&&mins<555) return 'pre';
+  if(isWeekday&&mins>=555&&mins<=930) return 'live';
+  if(isWeekday&&mins>930&&mins<=1050) return 'post';
+  return 'closed';
+}
+
+/* ===== CLOCK ===== */
+function updateClock(){
+  const ist=getIST();
+  document.getElementById('nav-clock').textContent=
+    String(ist.getHours()).padStart(2,'0')+':'+String(ist.getMinutes()).padStart(2,'0')+':'+String(ist.getSeconds()).padStart(2,'0')+' IST';
+  const s=getSession();
+  const pill=document.getElementById('mkt-pill');
+  const txt=document.getElementById('mkt-text');
+  const banner=document.getElementById('session-banner');
+  const title=document.getElementById('banner-title');
+  const bsub=document.getElementById('banner-sub');
+  const bicon=document.getElementById('banner-icon');
+  const bnext=document.getElementById('next-info');
+  if(s==='live'){
+    pill.className='mkt-pill live'; txt.textContent='NSE LIVE';
+    banner.className='session-banner live-banner';
+    bicon.textContent='🟢'; title.textContent='NSE Live — Market Open';
+    bsub.textContent='Real-time picks & analysis  •  9:15 AM – 3:30 PM IST';
+    bnext.textContent='';
+  } else if(s==='pre'){
+    pill.className='mkt-pill pre'; txt.textContent='PRE-OPEN';
+    banner.className='session-banner pre-banner';
+    bicon.textContent='🔵'; title.textContent='Pre-Open Session';
+    bsub.textContent='9:00 – 9:15 AM  •  Orders being matched';
+    bnext.textContent='';
+  } else {
+    pill.className='mkt-pill closed'; txt.textContent='CLOSED';
+    banner.className='session-banner closed-banner';
+    bicon.textContent='🌙'; title.textContent='Market Closed — After-Hours Mode';
+    bsub.textContent='AI analyzing news, global cues & technicals for next session picks';
+    const ist2=getIST(), d=ist2.getDay();
+    const daysAhead=d===0?1:d===6?2:1;
+    const next=new Date(ist2); next.setDate(ist2.getDate()+daysAhead); next.setHours(9,15,0);
+    bnext.textContent='Next: '+next.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'})+' 9:15 AM';
+  }
+}
+setInterval(updateClock,1000); updateClock();
+
+/* ===== CHART ===== */
+function loadChart(sym){
+  const wrap=document.getElementById('tv-chart');
+  wrap.innerHTML='';
+  const d=document.createElement('div'); wrap.appendChild(d);
+  const s=document.createElement('script');
+  s.src='https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+  s.async=true;
+  s.innerHTML=JSON.stringify({
+    autosize:true,height:316,symbol:sym,
+    interval:getSession()==='live'?'5':'D',
+    timezone:'Asia/Kolkata',theme:'dark',style:'1',locale:'en',
+    gridColor:'rgba(30,45,69,0.5)',backgroundColor:'rgba(13,24,39,1)',
+    enable_publishing:false,allow_symbol_change:false,save_image:false
+  });
+  d.appendChild(s);
+}
+loadChart('NSE:NIFTY50');
+
+function switchChart(sym,btn){
+  document.querySelectorAll('.sym-btn').forEach(b=>b.classList.remove('active'));
+  if(btn&&btn.classList) btn.classList.add('active');
+  document.getElementById('chart-sym-label').textContent=sym;
+  loadChart(sym);
+}
+
+/* ===== CLAUDE API with retry ===== */
+async function claudeAPI(prompt, maxTok=1000, tries=3){
+  for(let i=0;i<tries;i++){
+    try{
+      const r=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          model:'claude-sonnet-4-20250514',
+          max_tokens:maxTok,
+          tools:[{type:'web_search_20250305',name:'web_search'}],
+          system:'You are an expert NSE/BSE Indian stock market analyst and intraday trader. ALWAYS respond with ONLY valid JSON. No markdown, no backticks, no text outside the JSON object. Always fill every field.',
+          messages:[{role:'user',content:prompt}]
+        })
+      });
+      if(!r.ok){
+        const err=await r.json().catch(()=>({}));
+        throw new Error((err.error&&err.error.message)||'HTTP '+r.status);
+      }
+      const data=await r.json();
+      if(data.error) throw new Error(data.error.message||'API Error');
+      const blocks=data.content||[];
+      const txt=blocks.filter(x=>x.type==='text').map(x=>x.text||'').join('');
+      const clean=txt.replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+      if(!clean||clean.length<5) throw new Error('Empty response');
+      // Try to extract JSON even if there's surrounding text
+      const jsonMatch=clean.match(/\{[\s\S]*\}/);
+      if(!jsonMatch) throw new Error('No JSON found');
+      return jsonMatch[0];
+    }catch(e){
+      if(i===tries-1) throw e;
+      await new Promise(res=>setTimeout(res,2000*(i+1)));
+    }
+  }
+}
+
+/* ===== INDEX DATA ===== */
+async function loadIndexData(){
+  const sess=getSession();
+  const note=sess==='live'?'Live':sess==='closed'?'Last close':'Pre-open';
+  try{
+    const raw=await claudeAPI(
+      `Search for the latest values of NSE NIFTY 50, BANK NIFTY, BSE SENSEX, and INDIA VIX right now. Return ONLY JSON: {"nifty":"24500","nifty_chg":"+0.5%","banknifty":"52000","banknifty_chg":"-0.2%","sensex":"80000","sensex_chg":"+0.4%","vix":"14.5","vix_chg":"-2.1%"}`,
+      300,2
+    );
+    const d=JSON.parse(raw);
+    const set=(pre,val,chg,isUp)=>{
+      const el=document.getElementById(pre+'-val');
+      if(el&&val){el.textContent=val;el.className='mcard-val '+(isUp?'up':'dn')}
+      const ce=document.getElementById(pre+'-chg');
+      if(ce&&chg) ce.textContent=chg;
+      const ne=document.getElementById(pre+'-note');
+      if(ne) ne.textContent=note;
+    };
+    if(d.nifty) set('nifty',d.nifty,d.nifty_chg,!(d.nifty_chg||'').includes('-'));
+    if(d.banknifty) set('banknifty',d.banknifty,d.banknifty_chg,!(d.banknifty_chg||'').includes('-'));
+    if(d.sensex){
+      const el=document.getElementById('sensex-val');
+      if(el){el.textContent=d.sensex;el.className='mcard-val neu'}
+      const ce=document.getElementById('sensex-chg'); if(ce) ce.textContent=d.sensex_chg||'';
+      const ne=document.getElementById('sensex-note'); if(ne) ne.textContent=note;
+    }
+    if(d.vix){
+      const el=document.getElementById('vix-val'); if(el) el.textContent=d.vix;
+      const ce=document.getElementById('vix-chg'); if(ce) ce.textContent=d.vix_chg||'';
+      const ne=document.getElementById('vix-note'); if(ne) ne.textContent=note;
+    }
+  }catch(e){
+    ['nifty','banknifty','sensex','vix'].forEach(k=>{
+      const v=document.getElementById(k+'-val'); if(v&&v.textContent==='—') v.textContent='N/A';
+      const n=document.getElementById(k+'-note'); if(n) n.textContent='Retry later';
+    });
+  }
+}
+
+/* ===== PICKS ===== */
+let picksReady=false;
+async function loadPicks(manual=false){
+  if(picksReady&&!manual) return;
+  const btn=document.getElementById('picks-btn');
+  btn.disabled=true; btn.textContent='...';
+  const body=document.getElementById('picks-body');
+  body.innerHTML=`<div class="loading-wrap"><div class="dots"><span></span><span></span><span></span></div>&nbsp;AI searching NSE market...</div>`;
+
+  const sess=getSession();
+  const ist=getIST();
+  const dateStr=ist.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+  let ctx='';
+  if(sess==='live') ctx='Market is LIVE RIGHT NOW. Use real-time price momentum, breakout stocks, volume surges for intraday picks today.';
+  else if(sess==='pre') ctx='Pre-open session (9:00-9:15 AM). Suggest best stocks for today\'s session opening.';
+  else ctx=`Market is CLOSED (${dateStr}). Search for latest Indian stock market news, earnings announcements, global market cues (SGX Nifty futures, US market close, Asian markets), FII/DII data, and recent corporate actions. Based on all this, suggest the BEST 2 bullish and 2 bearish stocks for the NEXT trading session.`;
+
+  document.getElementById('picks-meta').textContent=sess==='live'?'Live intraday picks':'Next session picks (after-hours analysis)';
+
+  const prompt=`Date: ${dateStr}. ${ctx}
+
+Search NSE news and market data. Return ONLY this JSON:
+{"date":"${dateStr}","session":"${sess==='live'?'Intraday Live':'Next Session Preview'}","market_mood":"Bullish or Bearish or Neutral","global_cue":"one line about global market or key news catalyst","bullish":[{"symbol":"NSE:SYMBOLNAME","name":"Full Company Name","action":"BUY","entry":"1234","target1":"1260","target2":"1290","sl":"1210","reason":"Specific reason with catalyst - 2 lines","basis":"Intraday or News-based or Technical"},{"symbol":"NSE:SYMBOLNAME","name":"Full Company Name","action":"BUY","entry":"1234","target1":"1260","target2":"1290","sl":"1210","reason":"Specific reason - 2 lines","basis":"basis"}],"bearish":[{"symbol":"NSE:SYMBOLNAME","name":"Full Company Name","action":"SHORT SELL","entry":"1234","target1":"1210","target2":"1190","sl":"1260","reason":"Specific reason with catalyst - 2 lines","basis":"basis"},{"symbol":"NSE:SYMBOLNAME","name":"Full Company Name","action":"SHORT SELL","entry":"1234","target1":"1210","target2":"1190","sl":"1260","reason":"Specific reason - 2 lines","basis":"basis"}]}`;
+
+  try{
+    const raw=await claudeAPI(prompt,1500,3);
+    const data=JSON.parse(raw);
+    if(!data.bullish||!data.bearish) throw new Error('Incomplete data');
+    renderPicks(data);
+    picksReady=true;
+  }catch(e){
+    body.innerHTML=`<div style="padding:16px">
+      <div style="color:var(--amber);font-family:Space Mono,monospace;font-size:11px;margin-bottom:8px">⚠ Could not load picks</div>
+      <div style="color:var(--muted);font-size:12px;margin-bottom:12px">Internet connection check karo ya thodi der baad retry karo.</div>
+      <button class="retry-btn" onclick="loadPicks(true)">↻ RETRY</button>
+    </div>`;
+  }
+  btn.disabled=false; btn.textContent='↻ REFRESH';
+}
+
+function renderPicks(data){
+  const body=document.getElementById('picks-body');
+  const isClosed=getSession()==='closed';
+  const moodColor=data.market_mood==='Bullish'?'var(--green)':data.market_mood==='Bearish'?'var(--red)':'var(--amber)';
+  let html=`<div style="margin-bottom:12px">
+    <div style="font-family:Space Mono,monospace;font-size:9px;color:var(--muted);margin-bottom:5px;letter-spacing:1px">
+      MOOD: <span style="color:${moodColor}">◈ ${data.market_mood||'MIXED'}</span>&nbsp;&nbsp;
+      <span style="color:var(--blue)">${data.session||''}</span>
+    </div>
+    ${data.global_cue?`<div style="font-size:11px;color:var(--muted);line-height:1.5;padding:8px 10px;background:var(--bg2);border-radius:6px;margin-bottom:8px">${data.global_cue}</div>`:''}
+  </div>`;
+
+  html+=`<div class="section-label bull">▲ BULLISH PICKS</div>`;
+  (data.bullish||[]).forEach(p=>{
+    const sym=(p.symbol||'UNKNOWN').replace('NSE:','');
+    html+=`<div class="pick-card bull" title="Click to view chart" onclick="switchChart('NSE:${sym}',null);document.getElementById('chart-sym-label').textContent='NSE:${sym}';document.querySelectorAll('.sym-btn').forEach(b=>b.classList.remove('active'))">
+      <div class="pick-top"><span class="pick-sym bull">${sym}</span><span class="pick-action bull">${p.action||'BUY'}</span></div>
+      <div class="pick-reason">${p.reason||'—'}</div>
+      <div class="pick-levels">
+        <div class="pick-level" style="color:var(--amber)"><span>ENTRY </span>₹${p.entry||'—'}</div>
+        <div class="pick-level" style="color:var(--green)"><span>T1 </span>₹${p.target1||'—'}</div>
+        <div class="pick-level" style="color:var(--green)"><span>T2 </span>₹${p.target2||'—'}</div>
+        <div class="pick-level" style="color:var(--red)"><span>SL </span>₹${p.sl||'—'}</div>
+      </div>
+      ${p.basis?`<div class="pick-basis">BASIS: ${p.basis}</div>`:''}
+    </div>`;
+  });
+
+  html+=`<div class="section-label bear" style="margin-top:14px">▼ BEARISH PICKS</div>`;
+  (data.bearish||[]).forEach(p=>{
+    const sym=(p.symbol||'UNKNOWN').replace('NSE:','');
+    html+=`<div class="pick-card bear">
+      <div class="pick-top"><span class="pick-sym bear">${sym}</span><span class="pick-action bear">${p.action||'SELL'}</span></div>
+      <div class="pick-reason">${p.reason||'—'}</div>
+      <div class="pick-levels">
+        <div class="pick-level" style="color:var(--amber)"><span>ENTRY </span>₹${p.entry||'—'}</div>
+        <div class="pick-level" style="color:var(--red)"><span>T1 </span>₹${p.target1||'—'}</div>
+        <div class="pick-level" style="color:var(--red)"><span>T2 </span>₹${p.target2||'—'}</div>
+        <div class="pick-level" style="color:var(--green)"><span>SL </span>₹${p.sl||'—'}</div>
+      </div>
+      ${p.basis?`<div class="pick-basis">BASIS: ${p.basis}</div>`:''}
+    </div>`;
+  });
+
+  if(isClosed){
+    html+=`<div style="margin-top:10px;padding:8px 10px;background:rgba(255,179,0,0.05);border:1px solid rgba(255,179,0,0.15);border-radius:6px;font-size:9px;color:rgba(255,179,0,0.65);font-family:Space Mono,monospace;letter-spacing:0.5px">⚠ After-hours analysis. Confirm at market open 9:15 AM IST.</div>`;
+  }
+  body.innerHTML=html;
+}
+
+/* ===== ANALYZER ===== */
+async function analyzeStock(){
+  const raw=document.getElementById('stock-input').value.trim().toUpperCase().replace(/^NSE:/,'');
+  if(!raw) return;
+  const sym=raw;
+  const btn=document.getElementById('analyze-btn');
+  btn.disabled=true; btn.textContent='ANALYZING...';
+  const res=document.getElementById('ai-result');
+  res.className='ai-result show';
+  document.getElementById('ai-analysis-text').innerHTML=`<div class="loading-wrap"><div class="dots"><span></span><span></span><span></span></div>&nbsp;AI analyzing ${sym}...</div>`;
+  document.getElementById('signal-badge').className='signal-badge';
+  document.getElementById('signal-badge').textContent='—';
+  document.getElementById('signal-sym').textContent=sym;
+  document.getElementById('analysis-basis').textContent='';
+  ['lv-entry','lv-t1','lv-t2','lv-sl','lv-rr'].forEach(id=>document.getElementById(id).textContent='—');
+
+  const sess=getSession();
+  const ctx=sess==='live'
+    ?'Market is LIVE. Give intraday analysis with current momentum and key levels.'
+    :`Market is CLOSED. Analyze using latest news, recent corporate events, technical chart levels, and global cues. Give next session outlook.`;
+
+  const prompt=`${ctx} Search for NSE stock: ${sym}
+
+Return ONLY this JSON (no extra text):
+{"symbol":"${sym}","signal":"BUY","current_price":"1234","entry":"1230","target1":"1260","target2":"1295","stop_loss":"1210","rr_ratio":"1:2","analysis":"Line 1: Current price and trend. Line 2: Key technical levels (support resistance RSI). Line 3: Main catalyst or risk factor. Simple English/Hindi mix ok.","basis":"Intraday or Next Session","confidence":"High or Medium or Low"}
+
+Replace signal with one of: BUY, SELL, AVOID, HOLD, WATCH`;
+
+  try{
+    const rawResp=await claudeAPI(prompt,1000,3);
+    const d=JSON.parse(rawResp);
+    const sig=((d.signal||'WATCH').toUpperCase());
+    const validSig=['BUY','SELL','AVOID','HOLD','WATCH'];
+    const badge=document.getElementById('signal-badge');
+    badge.textContent=sig;
+    badge.className='signal-badge '+(validSig.includes(sig)?sig:'WATCH');
+    document.getElementById('signal-sym').textContent='NSE:'+sym+(d.current_price?' — ₹'+d.current_price:'');
+    document.getElementById('ai-analysis-text').textContent=d.analysis||'Analysis not available.';
+    document.getElementById('analysis-basis').textContent=
+      `BASIS: ${d.basis||'—'}  •  CONFIDENCE: ${d.confidence||'—'}  •  ${sess==='live'?'LIVE SESSION':'AFTER-HOURS'}`;
+    document.getElementById('lv-entry').textContent='₹'+(d.entry||'—');
+    document.getElementById('lv-t1').textContent='₹'+(d.target1||'—');
+    document.getElementById('lv-t2').textContent='₹'+(d.target2||'—');
+    document.getElementById('lv-sl').textContent='₹'+(d.stop_loss||'—');
+    document.getElementById('lv-rr').textContent=d.rr_ratio||'—';
+    switchChart('NSE:'+sym,null);
+    document.getElementById('chart-sym-label').textContent='NSE:'+sym;
+    document.querySelectorAll('.sym-btn').forEach(b=>b.classList.remove('active'));
+  }catch(e){
+    document.getElementById('ai-analysis-text').innerHTML=
+      `<span style="color:var(--amber)">Retry karo.</span> Symbol check karo (e.g. RELIANCE not NSE:RELIANCE) ya internet connection dekho.<br><button class="retry-btn" onclick="analyzeStock()" style="margin-top:8px">↻ RETRY</button>`;
+  }
+  btn.disabled=false; btn.textContent='ANALYZE →';
+}
+document.getElementById('stock-input').addEventListener('keydown',e=>{if(e.key==='Enter')analyzeStock()});
+
+/* ===== NAV ===== */
+function showPage(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.nav-link').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  window.scrollTo(0,0);
+}
+function toggleMenu(){document.getElementById('mobile-menu').classList.toggle('open');}
+
+/* ===== INIT ===== */
+setTimeout(()=>loadPicks(false), 1000);
+setTimeout(()=>loadIndexData(), 1500);
+setInterval(()=>loadPicks(false), 30*60*1000);
+setInterval(()=>loadIndexData(), 5*60*1000);
+</script>
+</body>
+</html>
